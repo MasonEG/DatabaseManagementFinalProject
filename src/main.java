@@ -49,6 +49,9 @@ public class main {
         return result;
     }
 
+    // most important function in this program
+    private static void print(String s) { System.out.println(s); }
+
     /**
      * @param stmt
      * @param sqlQuery
@@ -159,9 +162,104 @@ public class main {
         } catch (SQLException e) {}
 
     }
+    private static void queryPopularHashtags(Connection conn, int num, int year) {
 
+        if (conn==null) throw new NullPointerException();
+        try {
+
+            ResultSet rs =null;
+            String toShow ="";
+
+            PreparedStatement lstmt = conn.prepareStatement(
+                    "select t.hastagname, count(distinct u.ofstate) as count, group_concat(distinct u.ofstate) "
+                    + "from tagged t, tweets tw "
+                    + "inner join `user` u on u.name = tw.posting_user "
+                    + "where t.tid = tw.tid and date_format(str_to_date(tw.posted, '%Y'), '%Y') = ? and tw.posting_user = u.name "
+                    + "group by t.hastagname "
+                    + "order by count desc "
+                    + "limit ?");  //? is the part should be filled, we set it in line 142
+
+            // clear previous parameter values
+            lstmt.clearParameters();
+
+            lstmt.setInt(1, year);
+            lstmt.setInt(2, num);
+
+            // execute the query
+            rs=lstmt.executeQuery();
+
+            // advance the cursor to the first record
+            rs.next();
+            while(!rs.isAfterLast()) {
+                toShow += "Hashtag: " + rs.getString(1) + ", ";
+                toShow += "number of states: " + rs.getInt(2) + ", ";
+                toShow += "states: " + rs.getString(3) + "\n";
+                rs.next();
+            }
+            lstmt.close();
+
+            if (toShow.length() > 0) JOptionPane.showMessageDialog(null, toShow);
+            else JOptionPane.showMessageDialog(null, "No results!");
+
+        } catch (SQLException e) {}
+
+    }
+
+    private static void findUsersWithHashtag(Connection conn, int numUsers, String hashtag, String month, int year) {
+
+        if (conn==null) throw new NullPointerException();
+        try {
+
+            ResultSet rs =null;
+            String toShow ="";
+
+            PreparedStatement lstmt = conn.prepareStatement(
+                    "select u.name, u.category, count(tw.tid) as count "
+                            + "from `user` u, tweets tw "
+                            + "inner join tagged t on hastagname=? "
+                            + "where tw.tid = t.tid "
+                            + "and date_format(tw.posted, '%Y') = ? "
+                            + "and date_format(tw.posted, '%m') = ? "
+                            + "and u.name = tw.posting_user "
+                            + "group by u.name "
+                            + "order by count desc "
+                            + "limit ?");
+
+            print("test 1");
+            // clear previous parameter values
+            lstmt.clearParameters();
+
+            lstmt.setString(1, hashtag);
+            lstmt.setInt(2, year);
+            lstmt.setString(3, month);
+            lstmt.setInt(4, numUsers);
+
+            print("lstmt: " + lstmt.toString());
+
+            // execute the query
+            rs=lstmt.executeQuery();
+
+            print("test 2");
+            // advance the cursor to the first record
+            if (!rs.isAfterLast())
+            rs.next();
+            while(!rs.isAfterLast()) {
+                toShow += "User: " + rs.getString(1) + ", ";
+                toShow += "category: " + rs.getString(2) + ", ";
+                toShow += "count: " + rs.getInt(3) + "\n";
+                rs.next();
+            }
+
+            print("to show: " + toShow);
+            lstmt.close();
+            if (toShow.length() > 0) JOptionPane.showMessageDialog(null, toShow);
+            else JOptionPane.showMessageDialog(null, "No results!");
+
+        } catch (SQLException e) {}
+
+    }
     public static void main(String[] args) {
-        String dbServer = "jdbc:mysql://localhost:3306/kitchen?useSSL=false";
+        String dbServer = "jdbc:mysql://localhost:3306/test?useSSL=false";
         // For compliance with existing applications not using SSL the verifyServerCertificate property is set to ‘false’,
         String userName = "";
         String password = "";
@@ -198,22 +296,23 @@ public class main {
                 if (option.equals("1")) {
                     String hashtagNum = JOptionPane.showInputDialog("Enter number of hashtags: ");
                     String yearNum = JOptionPane.showInputDialog("Enter year: ");
+                    queryPopularHashtags(conn, Integer.parseInt(hashtagNum), Integer.parseInt(yearNum));
                 } else if (option.equalsIgnoreCase("2")) {
-                    sqlQuery = "select f.fname, count(r.iid), sum(r.amount) from food f inner join recipe r on r.fid = f.fid inner join ingredient i on i.iid = r.iid group by f.fname";
-                    runQuery(stmt, sqlQuery);
+                    String hashtag = JOptionPane.showInputDialog("Enter hashtag: ");
+                    int year = Integer.parseInt(JOptionPane.showInputDialog("Enter year (must be 4 digits): "));
+                    String month = JOptionPane.showInputDialog("Enter month (must be 2 digits ex: 04): ");
+                    int numUsers = Integer.parseInt(JOptionPane.showInputDialog("Enter number of users: "));
+                    findUsersWithHashtag(conn, numUsers, hashtag, month, year);
                 } else if (option.equals("3")) {
                     sqlQuery = "select f.fname from food f where f.fid not in (select r.fid from recipe r inner join ingredient i on i.iid = r.iid where i.iname = 'Green Onion');";
-                    runQuery(stmt, sqlQuery);
                 } else if (option.equals("4")) {
                     sqlQuery = "select i.iname, r.amount from food f inner join recipe r on r.fid = f.fid inner join ingredient i on i.iid = r.iid where f.fname = 'Pad Thai'";
-                    runQuery(stmt, sqlQuery);
                 } else if (option.equals("5")) {
                     String fname=JOptionPane.showInputDialog("Enter foodname:");
                     insertFood(conn, fname);
                 } else if (option.equals("6")) {
                     String iname=JOptionPane.showInputDialog("Enter exact name of the ingredient to check:");
                     checkIngredient(conn, iname);
-                }
                 } else if (option.equals("7")) {
                     String iname=JOptionPane.showInputDialog("Enter exact name of the ingredient to check:");
                     checkIngredient(conn, iname);
