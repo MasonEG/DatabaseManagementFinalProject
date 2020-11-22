@@ -243,10 +243,58 @@ public class main {
             // advance the cursor to the first record
             if (!rs.isAfterLast())
             rs.next();
+            print("test 3, " + rs.isAfterLast());
             while(!rs.isAfterLast()) {
                 toShow += "User: " + rs.getString(1) + ", ";
                 toShow += "category: " + rs.getString(2) + ", ";
                 toShow += "count: " + rs.getInt(3) + "\n";
+                rs.next();
+            }
+
+            print("to show: " + toShow);
+            lstmt.close();
+            if (toShow.length() > 0) JOptionPane.showMessageDialog(null, toShow);
+            else JOptionPane.showMessageDialog(null, "No results!");
+
+        } catch (SQLException e) {}
+
+    }
+    private static void findTopUsers(Connection conn, int numUsers, String party) {
+
+        if (conn==null) throw new NullPointerException();
+        try {
+
+            ResultSet rs =null;
+            String toShow ="";
+
+            PreparedStatement lstmt = conn.prepareStatement(
+                    "select u.name, u.category, u.followers "
+                            + "from `user` u "
+                            + "where u.category = ? "
+                            + "group by u.name "
+                            + "order by u.numFollowers desc "
+                            + "limit ?");
+
+            // clear previous parameter values
+            lstmt.clearParameters();
+
+            lstmt.setString(1, party);
+            lstmt.setInt(2, numUsers);
+
+            print("lstmt: " + lstmt.toString());
+
+            // execute the query
+            rs=lstmt.executeQuery();
+
+            print("test 2");
+            // advance the cursor to the first record
+            if (!rs.isAfterLast())
+                rs.next();
+            print("test 3, " + rs.isAfterLast());
+            while(!rs.isAfterLast()) {
+                toShow += "User: " + rs.getString(1) + ", ";
+                toShow += "category: " + rs.getString(2) + ", ";
+                toShow += "followers: " + rs.getInt(3) + "\n";
                 rs.next();
             }
 
@@ -304,7 +352,9 @@ public class main {
                     int numUsers = Integer.parseInt(JOptionPane.showInputDialog("Enter number of users: "));
                     findUsersWithHashtag(conn, numUsers, hashtag, month, year);
                 } else if (option.equals("3")) {
-                    sqlQuery = "select f.fname from food f where f.fid not in (select r.fid from recipe r inner join ingredient i on i.iid = r.iid where i.iname = 'Green Onion');";
+                    String party = JOptionPane.showInputDialog("Enter party (ex: gop): ");
+                    int numUsers = Integer.parseInt(JOptionPane.showInputDialog("Enter number of users: "));
+                    findTopUsers(conn, numUsers, party);
                 } else if (option.equals("4")) {
                     sqlQuery = "select i.iname, r.amount from food f inner join recipe r on r.fid = f.fid inner join ingredient i on i.iid = r.iid where f.fname = 'Pad Thai'";
                 } else if (option.equals("5")) {
